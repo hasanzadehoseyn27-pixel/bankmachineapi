@@ -1,0 +1,345 @@
+﻿<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <title>فرم آگهی خودرو</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        surface: "#0f172a",   /* slate-900 */
+                        card: "#111827",      /* gray-900 */
+                        border: "#334155",    /* slate-700 */
+                        ink: "#e5e7eb"        /* gray-200 */
+                    },
+                    fontFamily: { sans: ["Vazirmatn", "ui-sans-serif", "system-ui"] }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- React UMD + ReactDOM UMD -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel برای کامپایل JSX درجا -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        .inp {
+            /* border و فوکوس لطیف */
+            --tw-ring-color: rgba(99,102,241,.4);
+            border: 1px solid #334155;
+            background: rgba(17,24,39,.6);
+            color: #e5e7eb;
+            width: 100%;
+            border-radius: .75rem;
+            padding: .5rem .75rem;
+            outline: none;
+        }
+
+            .inp::placeholder {
+                color: #94a3b8
+            }
+
+            .inp:focus {
+                border-color: #6366f1;
+                box-shadow: 0 0 0 2px var(--tw-ring-color);
+            }
+
+        .seg-btn {
+            padding: .25rem .75rem;
+            border-radius: 9999px;
+            border: 1px solid #334155;
+            transition: .15s
+        }
+
+        .seg-btn--on {
+            background: #4f46e5;
+            color: #fff;
+            border-color: #4f46e5
+        }
+
+        .seg-btn--off {
+            color: #e5e7ebcc
+        }
+
+            .seg-btn--off:hover {
+                background: rgba(255,255,255,.05)
+            }
+
+        .err {
+            margin-top: .25rem;
+            color: #f87171;
+            font-size: .75rem
+        }
+
+        .hr {
+            height: 1px;
+            background: #334155aa;
+            margin: .75rem 0
+        }
+    </style>
+</head>
+
+<body class="dark bg-surface text-ink font-sans">
+    <div id="root" class="max-w-xl mx-auto p-4"></div>
+
+    <!-- تمام کد ری‌اکت -->
+    <script type="text/babel" data-presets="react">
+    const tg = window.Telegram?.WebApp;
+    tg?.ready(); tg?.expand();
+
+    // آدرس API از ?api= خوانده می‌شود
+    const qs = new URLSearchParams(location.search);
+    const API_BASE = (qs.get("api") || "").replace(/\/$/, "");
+    const API_URL = (API_BASE ? API_BASE : "") + "/api/ads/submit";
+
+    const Sep = "━━━━━━━━━━━━━━━━";
+
+    function Field({label, error, children}) {
+      return (
+        <div className="mb-4">
+          <label className="block mb-1 text-sm font-semibold text-ink/90">{label}</label>
+          {children}
+          {error ? <div className="err">{error}</div> : null}
+        </div>
+      );
+    }
+
+    function Preview({v}) {
+      return (
+        <div className="bg-card border border-border rounded-2xl p-4 text-sm whitespace-pre-wrap leading-7">
+          <div>درخواست انتشار آگهی 📬</div>
+          <div>👤 کاربر: {v.submitter || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🧾 نوع درخواست: {v.requestTypeLabel}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🚘 نام خودرو: {v.carName || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🗓️ سال ساخت: {v.year || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🎨 رنگ: {v.color || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>⏱️ کارکرد: {v.mileage || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🛡️ وضعیت بدنه: {v.body || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🧱 وضعیت شاسی‌ها: {v.chassis || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🛞 وضعیت لاستیک‌ها: {v.tires || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🔧 وضعیت موتور و فنی: {v.mechanical || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>⚙️ نوع گیربکس: {v.gearbox || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🔒 قیمت (فقط ادمین): {v.price || "—"}</div>
+          <div className="text-border/70">{Sep}</div>
+          <div>🔒 سایر توضیحات (فقط ادمین):</div>
+          <div>{v.extra || "—"}</div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [photos, setPhotos] = React.useState([]);
+      const [loading, setLoading] = React.useState(false);
+      const [errors, setErrors] = React.useState({});
+      const fileRef = React.useRef(null);
+
+      const [v, setV] = React.useState({
+        requestType: "Sell",
+        carName: "", year: "", color: "", mileage: "",
+        body: "", chassis: "", tires: "", mechanical: "", gearbox: "",
+        price: "", extra: ""
+      });
+
+      const submitter = React.useMemo(() => {
+        const u = tg?.initDataUnsafe?.user;
+        if (!u) return "";
+        if (u.username) return "@"+u.username;
+        return [u.first_name, u.last_name].filter(Boolean).join(" ");
+      }, []);
+
+      const requestTypeLabel = {Buy:"خرید", Sell:"فروش", CoSell:"فروش همکاری"}[v.requestType];
+
+      const onPick = (e) => {
+        const files = Array.from(e.target.files || []);
+        setPhotos(p => [...p, ...files]);
+      };
+      const removePhoto = (idx) => setPhotos(p => p.filter((_,i)=>i!==idx));
+
+      function validate() {
+        const e = {};
+        if (!v.carName?.trim()) e.carName = "نام خودرو الزامی است.";
+        if (!/^\d{3,4}$/.test(v.year || "")) e.year = "سال ساخت را صحیح وارد کنید (مثلاً 1399).";
+        if (!v.color?.trim()) e.color = "رنگ الزامی است.";
+        if (!v.mileage?.trim()) e.mileage = "کارکرد را وارد کنید.";
+        if (!v.body?.trim()) e.body = "وضعیت بدنه را وارد کنید.";
+        if (!v.chassis?.trim()) e.chassis = "وضعیت شاسی‌ها را وارد کنید.";
+        if (!v.tires?.trim()) e.tires = "وضعیت لاستیک‌ها را وارد کنید.";
+        if (!v.mechanical?.trim()) e.mechanical = "وضعیت موتور و فنی را وارد کنید.";
+        if (!v.gearbox?.trim()) e.gearbox = "نوع گیربکس را وارد کنید.";
+        setErrors(e);
+        return Object.keys(e).length === 0;
+      }
+
+      async function submit() {
+        if (!validate()) {
+          tg?.showAlert?.("لطفاً خطاهای قرمز را برطرف کنید.");
+          return;
+        }
+
+        setLoading(true);
+        tg?.MainButton?.showProgress?.();
+
+        try {
+          const fd = new FormData();
+          fd.append("tgInitData", tg?.initData || "");
+          fd.append("requestType", v.requestType);
+          fd.append("carName", v.carName);
+          fd.append("year", v.year);
+          fd.append("color", v.color);
+          fd.append("mileage", v.mileage);
+          fd.append("body", v.body);
+          fd.append("chassis", v.chassis);
+          fd.append("tires", v.tires);
+          fd.append("mechanical", v.mechanical);
+          fd.append("gearbox", v.gearbox);
+          fd.append("price", v.price);
+          fd.append("extra", v.extra);
+          photos.forEach((f,i)=> fd.append("photo"+i, f, f.name));
+
+          const res = await fetch(API_URL, { method:"POST", body: fd });
+          if (!res.ok) {
+            const txt = await res.text().catch(()=>res.statusText);
+            throw new Error(txt || ("HTTP " + res.status));
+          }
+
+          tg?.showAlert?.("ثبت شد و برای ادمین ارسال گردید. ✅");
+          tg?.close();
+        } catch (ex) {
+          tg?.showAlert?.("خطا در ارسال: " + (ex?.message || ex));
+        } finally {
+          setLoading(false);
+          tg?.MainButton?.hideProgress?.();
+        }
+      }
+
+      // MainButton تلگرام
+      React.useEffect(() => {
+        if (!tg?.MainButton) return;
+        tg.MainButton.setText("ارسال برای ادمین");
+        tg.MainButton.onClick(submit);
+        tg.MainButton.show();
+        return () => tg.MainButton.offClick(submit);
+      }, [v, photos]);
+
+      return (
+        <div className="space-y-4">
+          <header className="sticky top-0 z-10 bg-surface/80 backdrop-blur rounded-2xl p-4 border border-border">
+            <h1 className="text-xl font-extrabold">فرم آگهی خودرو</h1>
+            <p className="text-sm text-ink/70">کاربر: {submitter || "—"}</p>
+          </header>
+
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <label className="block mb-1 text-sm font-semibold text-ink/90">نوع درخواست</label>
+            <div className="flex gap-2 mb-4">
+              {["Buy","Sell","CoSell"].map(rt=>(
+                <button type="button"
+                        onClick={()=>setV({...v, requestType: rt})}
+                        className={"seg-btn " + (v.requestType===rt?"seg-btn--on":"seg-btn--off")}
+                        aria-pressed={v.requestType===rt}
+                        key={rt}>
+                  {{Buy:"خرید",Sell:"فروش",CoSell:"فروش همکاری"}[rt]}
+                </button>
+              ))}
+            </div>
+
+            <Field label="نام خودرو" error={errors.carName}>
+              <input className="inp" value={v.carName} onInput={e=>setV({...v, carName:e.target.value})} />
+            </Field>
+
+            <Field label="سال ساخت" error={errors.year}>
+              <input className="inp" inputMode="numeric" value={v.year} onInput={e=>setV({...v, year:e.target.value})} />
+            </Field>
+
+            <Field label="رنگ" error={errors.color}>
+              <input className="inp" value={v.color} onInput={e=>setV({...v, color:e.target.value})} />
+            </Field>
+
+            <Field label="کارکرد" error={errors.mileage}>
+              <input className="inp" value={v.mileage} onInput={e=>setV({...v, mileage:e.target.value})} />
+            </Field>
+
+            <Field label="وضعیت بدنه" error={errors.body}>
+              <input className="inp" value={v.body} onInput={e=>setV({...v, body:e.target.value})} />
+            </Field>
+
+            <Field label="وضعیت شاسی‌ها" error={errors.chassis}>
+              <input className="inp" value={v.chassis} onInput={e=>setV({...v, chassis:e.target.value})} />
+            </Field>
+
+            <Field label="وضعیت لاستیک‌ها" error={errors.tires}>
+              <input className="inp" value={v.tires} onInput={e=>setV({...v, tires:e.target.value})} />
+            </Field>
+
+            <Field label="وضعیت موتور و فنی" error={errors.mechanical}>
+              <input className="inp" value={v.mechanical} onInput={e=>setV({...v, mechanical:e.target.value})} />
+            </Field>
+
+            <Field label="نوع گیربکس" error={errors.gearbox}>
+              <input className="inp" value={v.gearbox} onInput={e=>setV({...v, gearbox:e.target.value})} />
+            </Field>
+
+            <div className="hr"></div>
+
+            <Field label="عکس‌ها (فقط ادمین)">
+              <input type="file" ref={fileRef} multiple accept="image/*" className="hidden" onChange={onPick}/>
+              <div className="flex flex-wrap gap-2">
+                <button className="seg-btn seg-btn--off" type="button" onClick={()=>fileRef.current?.click()}>افزودن عکس</button>
+                {photos.map((f,i)=>(
+                  <div className="relative" key={i}>
+                    <img className="w-20 h-20 object-cover rounded-lg border border-border" src={URL.createObjectURL(f)} />
+                    <button type="button"
+                            className="absolute -top-2 -left-2 bg-red-500 text-white rounded-full w-6 h-6"
+                            onClick={()=>removePhoto(i)}>×</button>
+                  </div>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="قیمت (فقط ادمین)">
+              <input className="inp" inputMode="numeric" value={v.price} onInput={e=>setV({...v, price:e.target.value})} />
+            </Field>
+
+            <Field label="سایر توضیحات (فقط ادمین)">
+              <textarea rows="4" className="inp" value={v.extra} onInput={e=>setV({...v, extra:e.target.value})}></textarea>
+            </Field>
+
+            <button disabled={loading}
+                    onClick={submit}
+                    className={"w-full mt-2 rounded-xl text-white py-2 " + (loading?"bg-slate-500":"bg-emerald-600 hover:bg-emerald-700")}>
+              {loading ? "در حال ارسال..." : "ارسال برای ادمین"}
+            </button>
+          </div>
+
+          <Preview v={{...v, submitter, requestTypeLabel}} />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App/>);
+    </script>
+</body>
+</html>
